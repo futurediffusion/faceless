@@ -7,6 +7,7 @@ from PySide6.QtCore import QObject, Signal
 
 from comfy_client import ComfyClient
 from llm_gemini import GeminiLLM, SYSTEM_BASE
+from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
 from scene_plan import parse_scene_plan
 from world_state import WorldState
@@ -73,7 +74,9 @@ class ChatGenerateWorker(threading.Thread):
         char_params: CharacterParams,
         user_text: str,
         gen_params: GenParams,
+        provider: str,
         api_key: str,
+        ollama_model: str,
         world_state: WorldState,
     ):
         super().__init__(daemon=True)
@@ -82,16 +85,24 @@ class ChatGenerateWorker(threading.Thread):
         self.char_params = char_params
         self.user_text = user_text
         self.gen_params = gen_params
+        self.provider = provider
         self.api_key = api_key
+        self.ollama_model = ollama_model
         self.world_state = world_state
         self.signals = WorkerSignals()
 
     def run(self):
         try:
             self.signals.status.emit("…")
-            llm = GeminiLLM(self.api_key)
             system_prompt = f"{SYSTEM_BASE}\n\n{self.world_state.build_llm_context()}"
-            raw_text = llm.generate_avatar_text(self.user_text, system_prompt)
+            if self.provider == "gemini":
+                llm = GeminiLLM(self.api_key)
+                raw_text = llm.generate_avatar_text(self.user_text, system_prompt)
+            elif self.provider == "ollama":
+                llm = OllamaLLM(self.ollama_model)
+                raw_text = llm.generate(system_prompt, self.user_text, self.world_state.history)
+            else:
+                raise ValueError(f"Unknown LLM provider: {self.provider}")
             scene_plan = parse_scene_plan(raw_text)
             print("[LLM] ScenePlan:")
             print(scene_plan)

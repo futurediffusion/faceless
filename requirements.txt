@@ -1,3 +1,5 @@
 PySide6
 requests
 google-genai
+tqdm
+ollama

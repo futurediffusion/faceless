@@ -5,6 +5,8 @@ from typing import Any, Dict
 DEFAULT_CONFIG: Dict[str, Any] = {
     "llm_provider": "gemini",
     "gemini_api_key": "",
+    "ollama_model": "qwen2.5:7b-instruct",
+    "prefer_ollama_while_busy": True,
 }
 
 

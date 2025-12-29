@@ -1,19 +1,30 @@
+import threading
+
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QDialog,
+    QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
-    QLabel,
-    QHBoxLayout,
-    QTextEdit,
-    QComboBox,
-    QDoubleSpinBox,
     QSpinBox,
-    QCheckBox,
+    QTextEdit,
+    QWidget,
 )
 
 from comfy_client import ComfyClient
+from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
+from ollama import ResponseError, show
+
+
+class OllamaStatusSignals(QObject):
+    status = Signal(str, str)
+    busy = Signal(bool)
 
 
 class ApiKeysDialog(QDialog):
@@ -26,12 +37,57 @@ class ApiKeysDialog(QDialog):
         layout = QFormLayout(self)
 
         self.provider = QComboBox()
-        self.provider.addItem("Gemini")
+        self.provider.addItems(["Gemini", "Ollama"])
+        provider = config.get("llm_provider", "gemini").lower()
+        if provider == "ollama":
+            self.provider.setCurrentText("Ollama")
         layout.addRow("Provider:", self.provider)
 
         self.gemini_key = QLineEdit(config.get("gemini_api_key", ""))
         self.gemini_key.setEchoMode(QLineEdit.Password)
-        layout.addRow("GEMINI_API_KEY:", self.gemini_key)
+        self.gemini_label = QLabel("GEMINI_API_KEY:")
+        layout.addRow(self.gemini_label, self.gemini_key)
+
+        self.ollama_model = QLineEdit(config.get("ollama_model", "qwen2.5:7b-instruct"))
+        self.ollama_model_label = QLabel("Ollama model:")
+        layout.addRow(self.ollama_model_label, self.ollama_model)
+
+        ollama_buttons = QHBoxLayout()
+        self.btn_test_ollama = QPushButton("Test Ollama")
+        self.btn_pull_ollama = QPushButton("Pull Model")
+        self.btn_test_ollama.clicked.connect(self.test_ollama)
+        self.btn_pull_ollama.clicked.connect(self.pull_ollama)
+        ollama_buttons.addWidget(self.btn_test_ollama)
+        ollama_buttons.addWidget(self.btn_pull_ollama)
+        self.ollama_buttons_container = QWidget()
+        self.ollama_buttons_container.setLayout(ollama_buttons)
+        layout.addRow(self.ollama_buttons_container)
+
+        self.ollama_status = QLabel("")
+        self.ollama_status.setStyleSheet("color: #808080;")
+        self.ollama_status.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        layout.addRow(self.ollama_status)
+
+        self.prefer_ollama_busy = QCheckBox("Preferir Ollama mientras Comfy está ocupado")
+        self.prefer_ollama_busy.setChecked(config.get("prefer_ollama_while_busy", True))
+        layout.addRow(self.prefer_ollama_busy)
+
+        performance_tip = QLabel(
+            "Si SDXL está generando lento y Ollama también, prueba: (a) usar Gemini, "
+            "(b) usar un modelo Ollama más pequeño, o (c) bajar resolución/steps."
+        )
+        performance_tip.setWordWrap(True)
+        performance_tip.setStyleSheet("color: #808080; font-size: 10px;")
+        layout.addRow(performance_tip)
+
+        commands = QLabel(
+            "Comandos rápidos:\n"
+            "ollama pull qwen2.5:7b-instruct\n"
+            "ollama run qwen2.5:7b-instruct"
+        )
+        commands.setStyleSheet("color: #808080; font-size: 10px;")
+        commands.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        layout.addRow(commands)
 
         info = QLabel("Stored locally in config.json (not committed)")
         info.setStyleSheet("color: #808080; font-size: 10px;")
@@ -46,10 +102,77 @@ class ApiKeysDialog(QDialog):
         btn_layout.addWidget(btn_cancel)
         layout.addRow(btn_layout)
 
+        self.ollama_signals = OllamaStatusSignals()
+        self.ollama_signals.status.connect(self.update_ollama_status)
+        self.ollama_signals.busy.connect(self.set_ollama_busy)
+
+        self.provider.currentTextChanged.connect(self.update_provider_ui)
+        self.update_provider_ui()
+
+    def update_provider_ui(self):
+        use_ollama = self.provider.currentText().lower() == "ollama"
+        self.gemini_label.setVisible(not use_ollama)
+        self.gemini_key.setVisible(not use_ollama)
+
+        self.ollama_model_label.setVisible(use_ollama)
+        self.ollama_model.setVisible(use_ollama)
+        self.ollama_buttons_container.setVisible(use_ollama)
+        self.ollama_status.setVisible(use_ollama)
+
+    def update_ollama_status(self, text: str, color: str) -> None:
+        self.ollama_status.setText(text)
+        self.ollama_status.setStyleSheet(f"color: {color};")
+
+    def set_ollama_busy(self, busy: bool) -> None:
+        self.btn_test_ollama.setEnabled(not busy)
+        self.btn_pull_ollama.setEnabled(not busy)
+        self.ollama_model.setEnabled(not busy)
+
+    def _run_ollama_action(self, action: str) -> None:
+        model = self.ollama_model.text().strip() or "qwen2.5:7b-instruct"
+        llm = OllamaLLM(model=model)
+        try:
+            if not llm.is_running():
+                self.ollama_signals.status.emit("❌ Ollama no está corriendo", "#ff0000")
+                return
+
+            if action == "test":
+                try:
+                    show(model)
+                    self.ollama_signals.status.emit("✅ Ollama OK", "#00ff00")
+                except ResponseError as exc:
+                    if exc.status_code == 404:
+                        self.ollama_signals.status.emit("⚠️ Modelo no descargado", "#ffcc00")
+                    else:
+                        raise
+                return
+
+            self.ollama_signals.status.emit("Downloading model…", "#808080")
+            llm.ensure_model(lambda msg: self.ollama_signals.status.emit(msg, "#808080"))
+            self.ollama_signals.status.emit("✅ Modelo listo", "#00ff00")
+        except Exception as exc:
+            self.ollama_signals.status.emit(f"❌ {exc}", "#ff0000")
+        finally:
+            self.ollama_signals.busy.emit(False)
+
+    def _start_ollama_thread(self, action: str) -> None:
+        self.ollama_signals.busy.emit(True)
+        thread = threading.Thread(target=self._run_ollama_action, args=(action,), daemon=True)
+        thread.start()
+
+    def test_ollama(self) -> None:
+        self._start_ollama_thread("test")
+
+    def pull_ollama(self) -> None:
+        self._start_ollama_thread("pull")
+
     def get_config(self) -> dict:
+        provider = self.provider.currentText().strip().lower()
         return {
-            "llm_provider": "gemini",
+            "llm_provider": provider,
             "gemini_api_key": self.gemini_key.text().strip(),
+            "ollama_model": self.ollama_model.text().strip() or "qwen2.5:7b-instruct",
+            "prefer_ollama_while_busy": self.prefer_ollama_busy.isChecked(),
         }
 
 
@@ -95,11 +218,15 @@ class CharacterDialog(QDialog):
 
         btn_down = QPushButton("-")
         btn_down.setFixedWidth(30)
-        btn_down.clicked.connect(lambda: self.lora_strength.setValue(max(0.0, self.lora_strength.value() - 0.1)))
+        btn_down.clicked.connect(
+            lambda: self.lora_strength.setValue(max(0.0, self.lora_strength.value() - 0.1))
+        )
 
         btn_up = QPushButton("+")
         btn_up.setFixedWidth(30)
-        btn_up.clicked.connect(lambda: self.lora_strength.setValue(min(2.0, self.lora_strength.value() + 0.1)))
+        btn_up.clicked.connect(
+            lambda: self.lora_strength.setValue(min(2.0, self.lora_strength.value() + 0.1))
+        )
 
         strength_layout.addWidget(btn_down)
         strength_layout.addWidget(self.lora_strength)

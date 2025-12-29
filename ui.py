@@ -1,8 +1,9 @@
 import json
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QAction, QImage, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QLabel,
@@ -18,10 +19,15 @@ from PySide6.QtWidgets import (
 from comfy_client import ComfyClient
 from config_store import load_config, save_config
 from dialogs import ApiKeysDialog, CharacterDialog, ConnectionDialog, ParamsDialog
+from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
 from workers import ChatGenerateWorker
 from workflow_patcher import detect_cliptext_nodes
 from world_state import WorldState
+
+
+class StatusSignals(QObject):
+    status = Signal(str)
 
 
 class FacelessDevApp(QWidget):
@@ -42,6 +48,10 @@ class FacelessDevApp(QWidget):
         self.input_visible = True
         self.available_loras = []
         self.available_checkpoints = []
+        self.comfy_busy = False
+        self.connection_ok = False
+        self.status_signals = StatusSignals()
+        self.status_signals.status.connect(self.set_status)
 
         # Main layout
         self.root = QVBoxLayout(self)
@@ -191,6 +201,7 @@ class FacelessDevApp(QWidget):
         # Wiring
         self.load_workflow(self.workflow_path)
         self.test_connection_silent()
+        self.bootstrap_ollama()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -273,6 +284,8 @@ class FacelessDevApp(QWidget):
             self.config.update(dialog.get_config())
             save_config(self.base_dir / "config.json", self.config)
             print("[INFO] API keys updated")
+            self.refresh_generate_state()
+            self.bootstrap_ollama()
 
     def open_connection_dialog(self):
         dialog = ConnectionDialog(self.comfy_url, self)
@@ -316,33 +329,69 @@ class FacelessDevApp(QWidget):
         self.refresh_generate_state()
 
     def refresh_generate_state(self):
-        client = ComfyClient(self.comfy_url)
-        ok = client.ping()
-        self.btn_generate.setEnabled(ok and self.prompt_graph is not None)
+        provider = self.config.get("llm_provider", "gemini").lower()
+        has_provider = True
+        if provider == "gemini":
+            has_provider = bool(self.config.get("gemini_api_key"))
+        elif provider == "ollama":
+            has_provider = bool(self.config.get("ollama_model"))
+        else:
+            has_provider = False
+
+        allow_while_busy = not self.config.get("prefer_ollama_while_busy", True)
+        busy_block = self.comfy_busy and not allow_while_busy
+        can_generate = self.connection_ok and self.prompt_graph is not None and has_provider and not busy_block
+        self.btn_generate.setEnabled(can_generate)
 
     def test_connection_silent(self):
         client = ComfyClient(self.comfy_url)
-        ok = client.ping()
-        self.btn_generate.setEnabled(ok and self.prompt_graph is not None)
-        print(f"[INFO] Connection: {'✅' if ok else '❌'}")
+        self.connection_ok = client.ping()
+        self.refresh_generate_state()
+        print(f"[INFO] Connection: {'✅' if self.connection_ok else '❌'}")
+
+    def bootstrap_ollama(self):
+        if self.config.get("llm_provider", "gemini").lower() != "ollama":
+            return
+
+        model = self.config.get("ollama_model") or "qwen2.5:7b-instruct"
+
+        def run():
+            try:
+                self.status_signals.status.emit("Checking Ollama model…")
+                llm = OllamaLLM(model=model)
+                llm.ensure_model(lambda msg: self.status_signals.status.emit(msg))
+                self.status_signals.status.emit("")
+            except Exception as exc:
+                self.status_signals.status.emit(f"❌ {exc}")
+
+        thread = threading.Thread(target=run, daemon=True)
+        thread.start()
 
     def on_generate(self):
         user_text = self.chat_input.toPlainText().strip()
         if not user_text:
             return
 
+        provider = self.config.get("llm_provider", "gemini").lower()
         client = ComfyClient(self.comfy_url)
         if not client.ping():
+            self.connection_ok = False
+            self.refresh_generate_state()
             self.set_status("❌ Not connected")
             return
+        self.connection_ok = True
         if self.prompt_graph is None:
             self.set_status("❌ Workflow not loaded")
             return
-        if not self.config.get("gemini_api_key"):
+        if provider == "gemini" and not self.config.get("gemini_api_key"):
             self.set_status("❌ Missing GEMINI_API_KEY (set in ⚙ → API Keys...)")
             return
+        if provider == "ollama" and not self.config.get("ollama_model"):
+            self.set_status("❌ Missing Ollama model (set in ⚙ → API Keys...)")
+            return
 
-        self.btn_generate.setEnabled(False)
+        self.comfy_busy = True
+        self.refresh_generate_state()
         self.set_status("…")
 
         self.reply_panel.clear()
@@ -355,7 +404,9 @@ class FacelessDevApp(QWidget):
             self.char_params,
             user_text,
             self.params,
+            provider,
             self.config.get("gemini_api_key", ""),
+            self.config.get("ollama_model", "qwen2.5:7b-instruct"),
             self.world_state,
         )
         worker.signals.status.connect(self.set_status)
@@ -365,7 +416,8 @@ class FacelessDevApp(QWidget):
         worker.start()
 
     def on_worker_done(self):
-        self.btn_generate.setEnabled(True)
+        self.comfy_busy = False
+        self.refresh_generate_state()
 
     def on_image(self, data: bytes):
         img = QImage.fromData(data)
