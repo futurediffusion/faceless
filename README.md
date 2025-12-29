@@ -7,5 +7,6 @@ Minimal PySide6 UI that connects to a local ComfyUI server and runs a fixed work
 2. Put `facelessbase.json` (API format) in the same folder as `faceless.py`
 3. Install deps:
    pip install -r requirements.txt
-4. Run:
+4. Add your Gemini API key via ⚙ → API Keys
+5. Run:
    python faceless.py

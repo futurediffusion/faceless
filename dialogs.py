@@ -16,6 +16,43 @@ from comfy_client import ComfyClient
 from models import CharacterParams, GenParams
 
 
+class ApiKeysDialog(QDialog):
+    def __init__(self, config: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("API Keys")
+        self.setModal(True)
+        self.config = config
+
+        layout = QFormLayout(self)
+
+        self.provider = QComboBox()
+        self.provider.addItem("Gemini")
+        layout.addRow("Provider:", self.provider)
+
+        self.gemini_key = QLineEdit(config.get("gemini_api_key", ""))
+        self.gemini_key.setEchoMode(QLineEdit.Password)
+        layout.addRow("GEMINI_API_KEY:", self.gemini_key)
+
+        info = QLabel("Stored locally in config.json (not committed)")
+        info.setStyleSheet("color: #808080; font-size: 10px;")
+        layout.addRow(info)
+
+        btn_layout = QHBoxLayout()
+        btn_save = QPushButton("Save")
+        btn_cancel = QPushButton("Cancel")
+        btn_save.clicked.connect(self.accept)
+        btn_cancel.clicked.connect(self.reject)
+        btn_layout.addWidget(btn_save)
+        btn_layout.addWidget(btn_cancel)
+        layout.addRow(btn_layout)
+
+    def get_config(self) -> dict:
+        return {
+            "llm_provider": "gemini",
+            "gemini_api_key": self.gemini_key.text().strip(),
+        }
+
+
 class CharacterDialog(QDialog):
     def __init__(self, char_params: CharacterParams, loras: list, parent=None):
         super().__init__(parent)
