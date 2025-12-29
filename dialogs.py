@@ -25,11 +25,19 @@ class CharacterDialog(QDialog):
 
         layout = QFormLayout(self)
 
-        # Base prompt
-        self.base_prompt = QTextEdit(char_params.base_prompt)
-        self.base_prompt.setFixedHeight(100)
-        self.base_prompt.setPlaceholderText("Character description (appearance, style, etc.)")
-        layout.addRow("Base character:", self.base_prompt)
+        # Visual character description
+        self.visual_base = QTextEdit(char_params.visual_base)
+        self.visual_base.setFixedHeight(100)
+        self.visual_base.setPlaceholderText("Character description (appearance, style, etc.)")
+        layout.addRow("Visual character description (used for images):", self.visual_base)
+
+        # Identity profile (LLM-only)
+        self.identity_profile = QTextEdit(char_params.identity_profile)
+        self.identity_profile.setFixedHeight(100)
+        self.identity_profile.setPlaceholderText(
+            "This will be used later by the LLM, not sent to ComfyUI."
+        )
+        layout.addRow("Identity profile (LLM only, not used for images yet):", self.identity_profile)
 
         # LoRA selector
         self.lora_combo = QComboBox()
@@ -82,7 +90,8 @@ class CharacterDialog(QDialog):
         if lora == "(None - Disabled)":
             lora = ""
         return CharacterParams(
-            base_prompt=self.base_prompt.toPlainText().strip(),
+            visual_base=self.visual_base.toPlainText().strip(),
+            identity_profile=self.identity_profile.toPlainText().strip(),
             lora_name=lora,
             lora_strength=self.lora_strength.value(),
         )
