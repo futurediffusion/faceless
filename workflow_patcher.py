@@ -3,6 +3,7 @@ import random
 from typing import Any, Dict, Optional, Tuple
 
 from models import CharacterParams, GenParams
+from prompt_builder import build_positive_prompt
 
 
 def find_node_by_title(prompt_graph: Dict[str, Any], title: str) -> Optional[str]:
@@ -51,23 +52,16 @@ def patch_workflow(
 
     # === POSITIVE PROMPT: QUALITY_TAGS + BASE + APPEND ===
     current = (g[pos_id].get("inputs") or {}).get("text", "") or ""
-    base = char_params.base_prompt.strip() if char_params.base_prompt else current
+    base = char_params.visual_base.strip() if char_params.visual_base else current
     extra = append_text.strip()
     quality = gen_params.quality_tags.strip()
-
-    parts = []
-    if quality:
-        parts.append(quality)
-    if base:
-        parts.append(base)
-    if extra:
-        parts.append(extra)
-
-    final_positive = ", ".join(parts) if parts else "high quality, detailed"
+    final_positive = build_positive_prompt(quality, base, extra)
 
     print(f"[DEBUG] POSITIVE - Quality: {quality[:60]}...")
-    print(f"[DEBUG] POSITIVE - Base: {base[:60]}...")
+    print(f"[DEBUG] POSITIVE - Visual Base: {base[:60]}...")
     print(f"[DEBUG] POSITIVE - Append: {extra}")
+    if char_params.identity_profile:
+        print(f"[DEBUG] Identity profile (ignored for images): {char_params.identity_profile[:60]}...")
     print(f"[DEBUG] POSITIVE - Final: {final_positive[:120]}...")
 
     g[pos_id]["inputs"]["text"] = final_positive

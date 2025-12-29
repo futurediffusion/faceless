@@ -16,6 +16,12 @@ class GenParams:
 
 @dataclass
 class CharacterParams:
-    base_prompt: str = ""
+    visual_base: str = ""
+    identity_profile: str = ""
     lora_name: str = ""  # Empty = disabled
     lora_strength: float = 0.0  # 0.0 = disabled, 1.0 = default when enabled
+    base_prompt: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if self.base_prompt and not self.visual_base:
+            self.visual_base = self.base_prompt
