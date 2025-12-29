@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, Signal
 from comfy_client import ComfyClient
 from llm_gemini import GeminiLLM, SYSTEM_BASE
 from models import CharacterParams, GenParams
-from scene_plan import has_strong_scene_change, parse_scene_plan
+from scene_plan import parse_scene_plan
 from world_state import WorldState
 from workflow_patcher import patch_workflow
 
@@ -99,20 +99,25 @@ class ChatGenerateWorker(threading.Thread):
             scene_append = scene_plan.scene_append
             print(f"[LLM] scene_append: {scene_append}")
 
-            should_generate = scene_plan.change_scene or (
-                scene_append and has_strong_scene_change(scene_append)
-            )
+            current_anchor = self.world_state.visual_anchor
+            anchor_for_prompt = current_anchor
+            if scene_plan.change_scene and scene_plan.visual_anchor:
+                anchor_for_prompt = scene_plan.visual_anchor
+
+            append_parts = []
+            if anchor_for_prompt:
+                append_parts.append(anchor_for_prompt)
+            if scene_append:
+                append_parts.append(scene_append)
+            prompt_append = ", ".join(append_parts)
+
             self.world_state.apply_sceneplan(scene_plan)
             self.world_state.add_turn(self.user_text, scene_plan.reply, scene_plan)
-            if not should_generate:
-                self.signals.reply.emit(scene_plan.reply)
-                self.signals.status.emit("")
-                return
 
             run_params = replace(self.gen_params)
 
             self.signals.status.emit("…")
-            graph = patch_workflow(self.prompt_graph, self.char_params, scene_append, run_params)
+            graph = patch_workflow(self.prompt_graph, self.char_params, prompt_append, run_params)
 
             client_id = str(uuid.uuid4())
             self.signals.status.emit("…")
