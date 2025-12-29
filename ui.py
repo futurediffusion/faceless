@@ -21,6 +21,7 @@ from dialogs import ApiKeysDialog, CharacterDialog, ConnectionDialog, ParamsDial
 from models import CharacterParams, GenParams
 from workers import ChatGenerateWorker
 from workflow_patcher import detect_cliptext_nodes
+from world_state import WorldState
 
 
 class FacelessDevApp(QWidget):
@@ -36,6 +37,7 @@ class FacelessDevApp(QWidget):
         self.prompt_graph: Optional[Dict[str, Any]] = None
         self.params = GenParams()
         self.char_params = CharacterParams()
+        self.world_state = WorldState(identity_profile=self.char_params.identity_profile)
         self.comfy_url = "http://127.0.0.1:8188"
         self.input_visible = True
         self.available_loras = []
@@ -260,6 +262,7 @@ class FacelessDevApp(QWidget):
         dialog = CharacterDialog(self.char_params, self.available_loras, self)
         if dialog.exec():
             self.char_params = dialog.get_params()
+            self.world_state.update_identity_profile(self.char_params.identity_profile)
             print(
                 f"[INFO] Character updated: LoRA={self.char_params.lora_name or '(None)'} @ {self.char_params.lora_strength}"
             )
@@ -324,6 +327,10 @@ class FacelessDevApp(QWidget):
         print(f"[INFO] Connection: {'✅' if ok else '❌'}")
 
     def on_generate(self):
+        user_text = self.chat_input.toPlainText().strip()
+        if not user_text:
+            return
+
         client = ComfyClient(self.comfy_url)
         if not client.ping():
             self.set_status("❌ Not connected")
@@ -340,7 +347,7 @@ class FacelessDevApp(QWidget):
 
         self.reply_panel.clear()
         self.reply_panel.hide()
-        user_text = self.chat_input.toPlainText().strip()
+        self.chat_input.clear()
 
         worker = ChatGenerateWorker(
             client,
@@ -349,6 +356,7 @@ class FacelessDevApp(QWidget):
             user_text,
             self.params,
             self.config.get("gemini_api_key", ""),
+            self.world_state,
         )
         worker.signals.status.connect(self.set_status)
         worker.signals.image.connect(self.on_image)
