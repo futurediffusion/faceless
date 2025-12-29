@@ -1,0 +1,279 @@
+{
+  "76": {
+    "inputs": {
+      "filename_prefix": "comfyui-airport-editorial"
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Guardar Imagen"
+    }
+  },
+  "80": {
+    "inputs": {
+      "seed": 616552449868338,
+      "steps": 8,
+      "cfg": 2.2,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "88",
+        0
+      ],
+      "positive": [
+        "84",
+        0
+      ],
+      "negative": [
+        "85",
+        0
+      ],
+      "latent_image": [
+        "87",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "__SAMPLER_MAIN__"
+    }
+  },
+  "81": {
+    "inputs": {
+      "samples": [
+        "80",
+        0
+      ],
+      "vae": [
+        "83",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decodificación VAE"
+    }
+  },
+  "82": {
+    "inputs": {
+      "lora_name": "dmd2_sdxl_4step_lora_fp16.safetensors",
+      "strength_model": 0.7,
+      "strength_clip": 1,
+      "model": [
+        "83",
+        0
+      ],
+      "clip": [
+        "83",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "__LORA_ACCEL__"
+    }
+  },
+  "83": {
+    "inputs": {
+      "ckpt_name": "Illustrious-XL-v2.0.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "__CHECKPOINT_BASE__"
+    }
+  },
+  "84": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "88",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "__PROMPT_POS__"
+    }
+  },
+  "85": {
+    "inputs": {
+      "text": "worst aesthetic, worst quality, low quality, bad quality, lowres, signature, username, logo, bad hands, mutated hands, , ambiguous form, feral, ",
+      "clip": [
+        "88",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "__PROMPT_NEG__"
+    }
+  },
+  "86": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "81",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Guardar Imagen"
+    }
+  },
+  "87": {
+    "inputs": {
+      "width": 768,
+      "height": 1368,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Imagen Latente Vacía"
+    }
+  },
+  "88": {
+    "inputs": {
+      "lora_name": "bettyrubble-70.safetensors",
+      "strength_model": 0.7,
+      "strength_clip": 1,
+      "model": [
+        "82",
+        0
+      ],
+      "clip": [
+        "82",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "__LORA_CHARACTER__"
+    }
+  },
+  "30:47": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "30:46",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ModelSamplingAuraFlow"
+    }
+  },
+  "30:42": {
+    "inputs": {
+      "conditioning": [
+        "30:45",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Acondicionamiento Cero"
+    }
+  },
+  "30:46": {
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Cargar Modelo de Difusión"
+    }
+  },
+  "30:39": {
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Cargar CLIP"
+    }
+  },
+  "30:40": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Cargar VAE"
+    }
+  },
+  "30:41": {
+    "inputs": {
+      "width": 1536,
+      "height": 864,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    }
+  },
+  "30:43": {
+    "inputs": {
+      "samples": [
+        "30:44",
+        0
+      ],
+      "vae": [
+        "30:40",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decodificación VAE"
+    }
+  },
+  "30:45": {
+    "inputs": {
+      "text": "Airport.\n\nTall, slender high-fashion model moving dynamically through it, mid distant full body shot from an energetic side angle, cinematic/editorial with bold contrasts and tactile materials.\n\nShe wears a coral tweed high-neck blouse with frayed metallic threads under an electric-blue distressed matte-leather trench with sculptural folds; paired with black tailored silk shorts with a soft drape and raw finish. Long straight dark hair, light complexion. She swings a neon-yellow gaming PC, gpu, fans.\n\nBlack tabi shoes. Bold, high-contrast, tactile, urban-grit meets high-fashion impact.",
+      "clip": [
+        "30:39",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Codificar Texto CLIP (Prompt)"
+    }
+  },
+  "30:44": {
+    "inputs": {
+      "seed": 458187909744127,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "30:47",
+        0
+      ],
+      "positive": [
+        "30:45",
+        0
+      ],
+      "negative": [
+        "30:42",
+        0
+      ],
+      "latent_image": [
+        "30:41",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.env
+
+# VSCode
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Outputs / cache
+output/
+outputs/
+*.log
+
+# DO NOT COMMIT ComfyUI portable
+ComfyUI_windows_portable/
+**/ComfyUI_windows_portable/
+
+# Large model folders (por si acaso)
+models/
+loras/
+checkpoints/
