@@ -18,6 +18,7 @@ Thumbs.db
 output/
 outputs/
 *.log
+config.json
 
 # DO NOT COMMIT ComfyUI portable
 ComfyUI_windows_portable/

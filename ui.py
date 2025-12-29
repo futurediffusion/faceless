@@ -16,9 +16,10 @@ from PySide6.QtWidgets import (
 )
 
 from comfy_client import ComfyClient
-from dialogs import CharacterDialog, ConnectionDialog, ParamsDialog
+from config_store import load_config, save_config
+from dialogs import ApiKeysDialog, CharacterDialog, ConnectionDialog, ParamsDialog
 from models import CharacterParams, GenParams
-from workers import GenerateWorker
+from workers import ChatGenerateWorker
 from workflow_patcher import detect_cliptext_nodes
 
 
@@ -30,6 +31,7 @@ class FacelessDevApp(QWidget):
 
         self.base_dir = Path(__file__).resolve().parent
         self.workflow_path = self.base_dir / "facelessbase.json"
+        self.config = load_config(self.base_dir)
 
         self.prompt_graph: Optional[Dict[str, Any]] = None
         self.params = GenParams()
@@ -50,6 +52,23 @@ class FacelessDevApp(QWidget):
         self.image_label.setMinimumHeight(400)
         self.image_label.setStyleSheet("background-color: #000;")
         self.root.addWidget(self.image_label)
+
+        # Reply panel (visual novel style)
+        self.reply_panel = QTextEdit(self)
+        self.reply_panel.setReadOnly(True)
+        self.reply_panel.setStyleSheet(
+            """
+            QTextEdit {
+                background-color: rgba(10, 10, 10, 200);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 40);
+                border-radius: 10px;
+                padding: 8px;
+                font-size: 12px;
+            }
+        """
+        )
+        self.reply_panel.hide()
 
         # Settings button (gear, top-right overlay)
         self.btn_settings = QPushButton("⚙", self)
@@ -110,11 +129,11 @@ class FacelessDevApp(QWidget):
         toggle_layout.addStretch()
         input_layout.addLayout(toggle_layout)
 
-        # Scene/action prompt (base removed from here)
-        self.append = QTextEdit()
-        self.append.setPlaceholderText("Scene/action/emotion...")
-        self.append.setFixedHeight(100)
-        self.append.setStyleSheet(
+        # Chat input
+        self.chat_input = QTextEdit()
+        self.chat_input.setPlaceholderText("Chat input...")
+        self.chat_input.setFixedHeight(100)
+        self.chat_input.setStyleSheet(
             """
             QTextEdit {
                 background-color: rgba(40, 40, 40, 200);
@@ -126,7 +145,7 @@ class FacelessDevApp(QWidget):
             }
         """
         )
-        input_layout.addWidget(self.append)
+        input_layout.addWidget(self.chat_input)
 
         # Generate button
         self.btn_generate = QPushButton("Generate")
@@ -178,12 +197,21 @@ class FacelessDevApp(QWidget):
 
         # Reposition input container (bottom)
         self.position_input_container()
+        self.position_reply_panel()
 
         # Scale image
         pm = self.image_label.pixmap()
         if pm:
             scaled = pm.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.image_label.setPixmap(scaled)
+
+    def position_reply_panel(self):
+        reply_height = 140
+        bottom_padding = 10
+        input_height = self.input_container.height()
+        top = self.height() - input_height - reply_height - bottom_padding
+        self.reply_panel.setGeometry(10, max(10, top), self.width() - 20, reply_height)
+        self.reply_panel.raise_()
 
     def position_input_container(self):
         container_height = 220 if self.input_visible else 45
@@ -194,11 +222,12 @@ class FacelessDevApp(QWidget):
         self.input_visible = not self.input_visible
         self.btn_toggle.setText("▲" if self.input_visible else "▼")
 
-        self.append.setVisible(self.input_visible)
+        self.chat_input.setVisible(self.input_visible)
         self.btn_generate.setVisible(self.input_visible)
         self.status.setVisible(self.input_visible)
 
         self.position_input_container()
+        self.position_reply_panel()
 
     def show_settings_menu(self):
         menu = QMenu(self)
@@ -208,6 +237,10 @@ class FacelessDevApp(QWidget):
         menu.addAction(char_action)
 
         menu.addSeparator()
+
+        api_action = QAction("API Keys...", self)
+        api_action.triggered.connect(self.open_api_keys_dialog)
+        menu.addAction(api_action)
 
         conn_action = QAction("Connection...", self)
         conn_action.triggered.connect(self.open_connection_dialog)
@@ -230,6 +263,13 @@ class FacelessDevApp(QWidget):
             print(
                 f"[INFO] Character updated: LoRA={self.char_params.lora_name or '(None)'} @ {self.char_params.lora_strength}"
             )
+
+    def open_api_keys_dialog(self):
+        dialog = ApiKeysDialog(self.config, self)
+        if dialog.exec():
+            self.config.update(dialog.get_config())
+            save_config(self.base_dir / "config.json", self.config)
+            print("[INFO] API keys updated")
 
     def open_connection_dialog(self):
         dialog = ConnectionDialog(self.comfy_url, self)
@@ -291,15 +331,28 @@ class FacelessDevApp(QWidget):
         if self.prompt_graph is None:
             self.set_status("❌ Workflow not loaded")
             return
+        if not self.config.get("gemini_api_key"):
+            self.set_status("❌ Missing GEMINI_API_KEY (set in ⚙ → API Keys...)")
+            return
 
         self.btn_generate.setEnabled(False)
         self.set_status("Generating...")
 
-        append_text = self.append.toPlainText().strip()
+        self.reply_panel.clear()
+        self.reply_panel.hide()
+        user_text = self.chat_input.toPlainText().strip()
 
-        worker = GenerateWorker(client, self.prompt_graph, self.char_params, append_text, self.params)
+        worker = ChatGenerateWorker(
+            client,
+            self.prompt_graph,
+            self.char_params,
+            user_text,
+            self.params,
+            self.config.get("gemini_api_key", ""),
+        )
         worker.signals.status.connect(self.set_status)
         worker.signals.image.connect(self.on_image)
+        worker.signals.reply.connect(self.on_reply_text)
         worker.signals.done.connect(self.on_worker_done)
         worker.start()
 
@@ -314,6 +367,12 @@ class FacelessDevApp(QWidget):
         pix = QPixmap.fromImage(img)
         scaled = pix.scaled(self.image_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image_label.setPixmap(scaled)
+
+    def on_reply_text(self, text: str):
+        if text:
+            self.reply_panel.setPlainText(text)
+            self.reply_panel.show()
+            self.position_reply_panel()
 
 
 def main():
