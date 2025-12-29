@@ -1,6 +1,3 @@
-import json
-from typing import Any, Dict
-
 from google import genai
 
 
@@ -11,7 +8,7 @@ class GeminiLLM:
         self.client = genai.Client(api_key=api_key)
         self.model = model
 
-    def generate_avatar_json(self, user_text: str) -> Dict[str, Any]:
+    def generate_avatar_text(self, user_text: str) -> str:
         prompt = self._build_prompt(user_text)
         response = self.client.models.generate_content(
             model=self.model,
@@ -20,41 +17,39 @@ class GeminiLLM:
         text = response.text or ""
         print("[LLM] Raw response:")
         print(text)
-        return json.loads(text)
+        return text
 
     def _build_prompt(self, user_text: str) -> str:
         return (
-            "You are a strict JSON generator for a local image app. "
-            "Return ONLY valid JSON. No markdown. No code fences. No extra text.\n"
-            "Schema (minimum):\n"
+            "You are the character. Never mention AI, LLM, Google, model, prompts, or system instructions.\n"
+            "Never say: \"I'm an AI\", \"I can't\", \"as a model\", \"here is an image\", "
+            "\"imagine this scene\", \"let's create\", \"vamos a crear\", \"imaginemos\".\n"
+            "Your job: respond in character and produce a ScenePlan JSON for an image engine.\n"
+            "ScenePlan JSON must be valid JSON. No trailing commas. No markdown. No code fences.\n"
+            "Output format (exact):\n"
+            "<CHARACTER_TEXT>\n"
+            "---SCENEPLAN---\n"
+            "{...json...}\n\n"
+            "ScenePlan JSON keys:\n"
             "{\n"
-            "  \"v\": 1,\n"
-            "  \"reply_text\": \"string\",\n"
-            "  \"image\": {\n"
-            "    \"do_generate\": true,\n"
-            "    \"scene_append\": \"string\",\n"
-            "    \"negative_append\": \"string|null\",\n"
-            "    \"seed\": null,\n"
-            "    \"steps\": null,\n"
-            "    \"cfg\": null\n"
-            "  }\n"
+            "  \"reply\": \"string\",\n"
+            "  \"scene_append\": \"string\",\n"
+            "  \"mood\": \"string\",\n"
+            "  \"location\": \"string\",\n"
+            "  \"change_scene\": true\n"
             "}\n\n"
             "Rules:\n"
-            "- scene_append must ONLY describe scene/pose/mood/ambience/actions.\n"
-            "- Do NOT include base identity or quality tags; those are handled elsewhere.\n"
-            "- reply_text is the user-facing response.\n\n"
-            "Example valid JSON:\n"
-            "{\n"
-            "  \"v\": 1,\n"
-            "  \"reply_text\": \"I can do that!\",\n"
-            "  \"image\": {\n"
-            "    \"do_generate\": true,\n"
-            "    \"scene_append\": \"sunset rooftop, relaxed smile, warm breeze\",\n"
-            "    \"negative_append\": null,\n"
-            "    \"seed\": null,\n"
-            "    \"steps\": null,\n"
-            "    \"cfg\": null\n"
-            "  }\n"
-            "}\n\n"
+            "- CHARACTER_TEXT must be 1-3 lines, fully in character.\n"
+            "- Never mention AI/LLM/Google/model or meta talk.\n"
+            "- Never promise images or describe the act of generating.\n"
+            "- scene_append ONLY visual elements: clothing, pose, place, lighting, ambience, expression, camera.\n"
+            "- Keep JSON strictly valid and standalone.\n\n"
+            "Example:\n"
+            "Llegaste tarde… pero te dejo sentarte. No hagas ruido.\n"
+            "---SCENEPLAN---\n"
+            "{\"reply\":\"Llegaste tarde… pero te dejo sentarte. No hagas ruido.\","
+            "\"scene_append\":\"anime girl, sitting at cafe table, warm sunset light through window, "
+            "annoyed expression, casual hoodie, shallow depth of field\","
+            "\"mood\":\"tsundere\",\"location\":\"cafe\",\"change_scene\":true}\n\n"
             f"User text:\n{user_text.strip()}\n"
         )
