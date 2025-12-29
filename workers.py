@@ -6,9 +6,9 @@ from typing import Any, Dict
 from PySide6.QtCore import QObject, Signal
 
 from comfy_client import ComfyClient
-from llm_contract import validate_contract
 from llm_gemini import GeminiLLM
 from models import CharacterParams, GenParams
+from scene_plan import has_strong_scene_change, parse_scene_plan
 from workflow_patcher import patch_workflow
 
 
@@ -38,18 +38,18 @@ class GenerateWorker(threading.Thread):
 
     def run(self):
         try:
-            self.signals.status.emit("Patching workflow…")
+            self.signals.status.emit("…")
             graph = patch_workflow(self.prompt_graph, self.char_params, self.append_text, self.gen_params)
 
             client_id = str(uuid.uuid4())
-            self.signals.status.emit("Queueing prompt…")
+            self.signals.status.emit("…")
             prompt_id = self.client.queue_prompt(graph, client_id)
 
-            self.signals.status.emit("Waiting for image…")
+            self.signals.status.emit("…")
             hist = self.client.wait_for_history(prompt_id)
 
             imgref = self.client.extract_first_image(hist)
-            self.signals.status.emit(f"Downloading: {imgref.filename}")
+            self.signals.status.emit("…")
             img_bytes = self.client.download_image(imgref)
 
             self.signals.image.emit(img_bytes)
@@ -85,53 +85,40 @@ class ChatGenerateWorker(threading.Thread):
 
     def run(self):
         try:
-            self.signals.status.emit("Calling Gemini…")
+            self.signals.status.emit("…")
             llm = GeminiLLM(self.api_key)
-            contract_raw = llm.generate_avatar_json(self.user_text)
-            print("[LLM] Parsed contract:")
-            print(contract_raw)
-            contract = validate_contract(contract_raw)
+            raw_text = llm.generate_avatar_text(self.user_text)
+            scene_plan = parse_scene_plan(raw_text, self.user_text)
+            print("[LLM] ScenePlan:")
+            print(scene_plan)
 
-            image_contract = contract.get("image", {})
-            scene_append = image_contract.get("scene_append", "") or ""
-            negative_append = image_contract.get("negative_append", "") or ""
+            scene_append = scene_plan.scene_append
             print(f"[LLM] scene_append: {scene_append}")
-            print(f"[LLM] negative_append: {negative_append}")
 
-            if not image_contract.get("do_generate", False):
-                self.signals.reply.emit(contract.get("reply_text", ""))
+            should_generate = scene_plan.change_scene or has_strong_scene_change(scene_append)
+            if not should_generate:
+                self.signals.reply.emit(scene_plan.reply)
                 self.signals.status.emit("")
                 return
 
-            final_negative = self.gen_params.negative
-            if negative_append:
-                final_negative = f"{final_negative}, {negative_append}"
-            print(f"[DEBUG] final_negative: {final_negative}")
+            run_params = replace(self.gen_params)
 
-            run_params = replace(self.gen_params, negative=final_negative)
-            if image_contract.get("seed") is not None:
-                run_params.seed = image_contract["seed"]
-            if image_contract.get("steps") is not None:
-                run_params.steps = image_contract["steps"]
-            if image_contract.get("cfg") is not None:
-                run_params.cfg = image_contract["cfg"]
-
-            self.signals.status.emit("Patching workflow…")
+            self.signals.status.emit("…")
             graph = patch_workflow(self.prompt_graph, self.char_params, scene_append, run_params)
 
             client_id = str(uuid.uuid4())
-            self.signals.status.emit("Queueing prompt…")
+            self.signals.status.emit("…")
             prompt_id = self.client.queue_prompt(graph, client_id)
 
-            self.signals.status.emit("Waiting for image…")
+            self.signals.status.emit("…")
             hist = self.client.wait_for_history(prompt_id)
 
             imgref = self.client.extract_first_image(hist)
-            self.signals.status.emit(f"Downloading: {imgref.filename}")
+            self.signals.status.emit("…")
             img_bytes = self.client.download_image(imgref)
 
             self.signals.image.emit(img_bytes)
-            self.signals.reply.emit(contract.get("reply_text", ""))
+            self.signals.reply.emit(scene_plan.reply)
             self.signals.status.emit("")
         except Exception as e:
             self.signals.status.emit(f"ERROR: {e}")

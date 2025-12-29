@@ -336,7 +336,7 @@ class FacelessDevApp(QWidget):
             return
 
         self.btn_generate.setEnabled(False)
-        self.set_status("Generating...")
+        self.set_status("…")
 
         self.reply_panel.clear()
         self.reply_panel.hide()
