@@ -6,9 +6,10 @@ from typing import Any, Dict
 from PySide6.QtCore import QObject, Signal
 
 from comfy_client import ComfyClient
-from llm_gemini import GeminiLLM
+from llm_gemini import GeminiLLM, SYSTEM_BASE
 from models import CharacterParams, GenParams
 from scene_plan import has_strong_scene_change, parse_scene_plan
+from world_state import WorldState
 from workflow_patcher import patch_workflow
 
 
@@ -73,6 +74,7 @@ class ChatGenerateWorker(threading.Thread):
         user_text: str,
         gen_params: GenParams,
         api_key: str,
+        world_state: WorldState,
     ):
         super().__init__(daemon=True)
         self.client = client
@@ -81,21 +83,27 @@ class ChatGenerateWorker(threading.Thread):
         self.user_text = user_text
         self.gen_params = gen_params
         self.api_key = api_key
+        self.world_state = world_state
         self.signals = WorkerSignals()
 
     def run(self):
         try:
             self.signals.status.emit("…")
             llm = GeminiLLM(self.api_key)
-            raw_text = llm.generate_avatar_text(self.user_text)
-            scene_plan = parse_scene_plan(raw_text, self.user_text)
+            system_prompt = f"{SYSTEM_BASE}\n\n{self.world_state.build_llm_context()}"
+            raw_text = llm.generate_avatar_text(self.user_text, system_prompt)
+            scene_plan = parse_scene_plan(raw_text)
             print("[LLM] ScenePlan:")
             print(scene_plan)
 
             scene_append = scene_plan.scene_append
             print(f"[LLM] scene_append: {scene_append}")
 
-            should_generate = scene_plan.change_scene or has_strong_scene_change(scene_append)
+            should_generate = scene_plan.change_scene or (
+                scene_append and has_strong_scene_change(scene_append)
+            )
+            self.world_state.apply_sceneplan(scene_plan)
+            self.world_state.add_turn(self.user_text, scene_plan.reply, scene_plan)
             if not should_generate:
                 self.signals.reply.emit(scene_plan.reply)
                 self.signals.status.emit("")

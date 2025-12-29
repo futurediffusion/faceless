@@ -11,7 +11,8 @@ class ScenePlan:
     reply: str
     scene_append: str
     mood: str = "neutral"
-    location: str = "unspecified"
+    location: str = ""
+    visual_anchor: str = ""
     change_scene: bool = False
 
 
@@ -37,7 +38,7 @@ def _coerce_bool(value: Any) -> bool:
     return False
 
 
-def parse_scene_plan(raw: str, user_text_fallback: str) -> ScenePlan:
+def parse_scene_plan(raw: str) -> ScenePlan:
     scene_json = extract_sceneplan_json(raw)
     data: Any = None
     if scene_json:
@@ -53,7 +54,7 @@ def parse_scene_plan(raw: str, user_text_fallback: str) -> ScenePlan:
 
         scene_append = data.get("scene_append")
         if not isinstance(scene_append, str) or not scene_append.strip():
-            scene_append = user_text_fallback
+            scene_append = ""
 
         mood = data.get("mood")
         if not isinstance(mood, str) or not mood.strip():
@@ -61,7 +62,11 @@ def parse_scene_plan(raw: str, user_text_fallback: str) -> ScenePlan:
 
         location = data.get("location")
         if not isinstance(location, str) or not location.strip():
-            location = "unspecified"
+            location = ""
+
+        visual_anchor = data.get("visual_anchor")
+        if not isinstance(visual_anchor, str) or not visual_anchor.strip():
+            visual_anchor = ""
 
         change_scene = _coerce_bool(data.get("change_scene"))
         return ScenePlan(
@@ -69,14 +74,16 @@ def parse_scene_plan(raw: str, user_text_fallback: str) -> ScenePlan:
             scene_append=scene_append.strip(),
             mood=mood.strip(),
             location=location.strip(),
+            visual_anchor=visual_anchor.strip(),
             change_scene=change_scene,
         )
 
     return ScenePlan(
         reply=extract_character_text(raw),
-        scene_append=user_text_fallback.strip(),
+        scene_append="",
         mood="neutral",
-        location="unspecified",
+        location="",
+        visual_anchor="",
         change_scene=False,
     )
 
