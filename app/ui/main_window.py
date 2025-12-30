@@ -26,8 +26,8 @@ class MainWindow(QWidget):
         self.image_viewer = ImageViewer(self)
         self.root.addWidget(self.image_viewer)
 
+        # Reply panel is a floating overlay (not in layout)
         self.reply_panel = ReplyPanel(self)
-        # CRITICAL: reply_panel is a floating overlay, not in layout
 
         self.input_panel = InputPanel(self)
         self.input_panel.generate_requested.connect(self.generate_requested.emit)
@@ -51,7 +51,7 @@ class MainWindow(QWidget):
         )
         self.btn_settings.clicked.connect(self.show_settings_menu)
 
-        # Ensure proper stacking order at startup
+        # Initial stacking order
         self.input_panel.show()
         self.reply_panel.hide()
         self.btn_settings.raise_()
@@ -64,15 +64,19 @@ class MainWindow(QWidget):
         self.position_overlays()
 
     def position_overlays(self):
-        """Position all floating overlay widgets"""
+        """Position all floating overlay widgets and maintain z-order"""
+        print("[MAIN_WINDOW] position_overlays called")
         self.btn_settings.move(self.width() - 60, 15)
         self.position_input_panel()
         self.position_reply_panel()
 
-        # CRITICAL: Ensure correct z-order after positioning
-        self.reply_panel.raise_()
+        # CRITICAL: Maintain correct z-order (back to front)
+        # reply_panel should be behind input_panel and settings button
+        if self.reply_panel.isVisible():
+            self.reply_panel.raise_()
         self.input_panel.raise_()
         self.btn_settings.raise_()
+        print(f"[MAIN_WINDOW] reply_panel visible: {self.reply_panel.isVisible()}, z-order updated")
 
     def position_input_panel(self):
         container_height = self.input_panel.preferred_height()
@@ -84,6 +88,7 @@ class MainWindow(QWidget):
         input_rect = self.input_panel.geometry()
         top = input_rect.top() - reply_height - bottom_padding
         self.reply_panel.setGeometry(10, max(10, top), self.width() - 20, reply_height)
+        print(f"[MAIN_WINDOW] reply_panel geometry: x=10, y={top}, w={self.width()-20}, h={reply_height}")
 
     def show_settings_menu(self):
         menu = QMenu(self)
@@ -118,16 +123,26 @@ class MainWindow(QWidget):
         self.input_panel.clear_input()
 
     def clear_reply(self):
+        print("[MAIN_WINDOW] clear_reply called")
         self.reply_panel.set_reply("")
 
     def show_reply(self, text: str):
-        """Show character reply text"""
-        print(f"[UI] show_reply called with: {text[:50]}..." if len(text) > 50 else f"[UI] show_reply called with: {text}")
+        """Show character reply in overlay panel"""
+        print(
+            f"[MAIN_WINDOW] show_reply called with: '{text[:50]}...'"
+            if len(text) > 50
+            else f"[MAIN_WINDOW] show_reply called with: '{text}'"
+        )
         self.reply_panel.set_reply(text)
         self.position_reply_panel()
-        # CRITICAL: Raise panel to front after showing
-        self.reply_panel.raise_()
-        print(f"[UI] reply_panel visible: {self.reply_panel.isVisible()}")
+        # CRITICAL: Raise panel after setting text
+        if self.reply_panel.isVisible():
+            self.reply_panel.raise_()
+            self.input_panel.raise_()  # Input should be on top of reply
+            self.btn_settings.raise_()  # Settings on top of everything
+            print(f"[MAIN_WINDOW] reply_panel raised, now visible: {self.reply_panel.isVisible()}")
+        else:
+            print("[MAIN_WINDOW] WARNING: reply_panel is not visible after set_reply!")
 
     def set_image_bytes(self, data: bytes) -> bool:
         return self.image_viewer.set_image_bytes(data)

@@ -22,19 +22,26 @@ class ReplyPanel(QTextEdit):
 
     def set_reply(self, text: str):
         clean_text = text.strip()
+        print("[ReplyPanel] set_reply called")
         print(
-            f"[ReplyPanel] set_reply called with: '{clean_text[:50]}...'"
+            f"[ReplyPanel] Input text: '{clean_text[:50]}...'"
             if len(clean_text) > 50
-            else f"[ReplyPanel] set_reply called with: '{clean_text}'"
+            else f"[ReplyPanel] Input text: '{clean_text}'"
         )
+        print(f"[ReplyPanel] Current state: visible={self.isVisible()}, geometry={self.geometry()}")
 
         if clean_text:
             self.setPlainText(clean_text)
-            print(f"[ReplyPanel] Text set, was hidden: {self.isHidden()}")
-            if self.isHidden():
+            print("[ReplyPanel] Text set in QTextEdit")
+
+            was_hidden = self.isHidden()
+            if was_hidden:
                 self.show()
-                print("[ReplyPanel] Called show()")
-            print(f"[ReplyPanel] Now visible: {self.isVisible()}")
+                print("[ReplyPanel] Called show() (was hidden)")
+
+            print(f"[ReplyPanel] Final state: visible={self.isVisible()}, isHidden={self.isHidden()}")
+            print(f"[ReplyPanel] Geometry: {self.geometry()}")
+            print(f"[ReplyPanel] Parent: {self.parent()}")
         else:
             self.clear()
             self.hide()
