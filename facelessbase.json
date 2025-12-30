@@ -11,8 +11,8 @@
   "80": {
     "inputs": {
       "seed": 616552449868338,
-      "steps": 8,
-      "cfg": 2.2,
+      "steps": 4,
+      "cfg": 1.8,
       "sampler_name": "euler_ancestral",
       "scheduler": "simple",
       "denoise": 1,
@@ -75,7 +75,7 @@
   },
   "83": {
     "inputs": {
-      "ckpt_name": "Illustrious-XL-v2.0.safetensors"
+      "ckpt_name": "waiNSFWIllustrious_v150.safetensors"
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
