@@ -86,6 +86,8 @@ class AppController:
         has_provider = True
         if provider == "gemini":
             has_provider = bool(self.config.get("gemini_api_key"))
+        elif provider == "openai":
+            has_provider = bool(self.config.get("openai_api_key"))
         elif provider == "ollama":
             has_provider = bool(self.config.get("ollama_model"))
         else:
@@ -174,6 +176,9 @@ class AppController:
         if provider == "gemini" and not self.config.get("gemini_api_key"):
             self.window.set_status("❌ Missing GEMINI_API_KEY (set in ⚙ → API Keys...)")
             return
+        if provider == "openai" and not self.config.get("openai_api_key"):
+            self.window.set_status("❌ Missing OPENAI_API_KEY (set in ⚙ → API Keys...)")
+            return
         if provider == "ollama" and not self.config.get("ollama_model"):
             self.window.set_status("❌ Missing Ollama model (set in ⚙ → API Keys...)")
             return
@@ -193,6 +198,8 @@ class AppController:
             self.params,
             provider,
             self.config.get("gemini_api_key", ""),
+            self.config.get("openai_api_key", ""),
+            self.config.get("openai_model", "gpt-5-nano"),
             self.config.get("ollama_model", "qwen2.5:7b-instruct"),
             self.world_state,
         )

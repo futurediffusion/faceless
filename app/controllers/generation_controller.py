@@ -21,7 +21,9 @@ class GenerationController:
         user_text: str,
         gen_params: GenParams,
         provider: str,
-        api_key: str,
+        gemini_api_key: str,
+        openai_api_key: str,
+        openai_model: str,
         ollama_model: str,
         world_state: WorldState,
     ) -> None:
@@ -32,7 +34,9 @@ class GenerationController:
             user_text,
             gen_params,
             provider,
-            api_key,
+            gemini_api_key,
+            openai_api_key,
+            openai_model,
             ollama_model,
             world_state,
         )

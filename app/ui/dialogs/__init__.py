@@ -37,16 +37,27 @@ class ApiKeysDialog(QDialog):
         layout = QFormLayout(self)
 
         self.provider = QComboBox()
-        self.provider.addItems(["Gemini", "Ollama"])
+        self.provider.addItems(["Gemini", "OpenAI", "Ollama"])
         provider = config.get("llm_provider", "gemini").lower()
         if provider == "ollama":
             self.provider.setCurrentText("Ollama")
+        elif provider == "openai":
+            self.provider.setCurrentText("OpenAI")
         layout.addRow("Provider:", self.provider)
 
         self.gemini_key = QLineEdit(config.get("gemini_api_key", ""))
         self.gemini_key.setEchoMode(QLineEdit.Password)
         self.gemini_label = QLabel("GEMINI_API_KEY:")
         layout.addRow(self.gemini_label, self.gemini_key)
+
+        self.openai_key = QLineEdit(config.get("openai_api_key", ""))
+        self.openai_key.setEchoMode(QLineEdit.Password)
+        self.openai_label = QLabel("OPENAI_API_KEY:")
+        layout.addRow(self.openai_label, self.openai_key)
+
+        self.openai_model = QLineEdit(config.get("openai_model", "gpt-5-nano"))
+        self.openai_model_label = QLabel("OpenAI model:")
+        layout.addRow(self.openai_model_label, self.openai_model)
 
         self.ollama_model = QLineEdit(config.get("ollama_model", "qwen2.5:7b-instruct"))
         self.ollama_model_label = QLabel("Ollama model:")
@@ -111,8 +122,16 @@ class ApiKeysDialog(QDialog):
 
     def update_provider_ui(self):
         use_ollama = self.provider.currentText().lower() == "ollama"
-        self.gemini_label.setVisible(not use_ollama)
-        self.gemini_key.setVisible(not use_ollama)
+        use_openai = self.provider.currentText().lower() == "openai"
+        use_gemini = self.provider.currentText().lower() == "gemini"
+
+        self.gemini_label.setVisible(use_gemini)
+        self.gemini_key.setVisible(use_gemini)
+
+        self.openai_label.setVisible(use_openai)
+        self.openai_key.setVisible(use_openai)
+        self.openai_model_label.setVisible(use_openai)
+        self.openai_model.setVisible(use_openai)
 
         self.ollama_model_label.setVisible(use_ollama)
         self.ollama_model.setVisible(use_ollama)
@@ -171,6 +190,8 @@ class ApiKeysDialog(QDialog):
         return {
             "llm_provider": provider,
             "gemini_api_key": self.gemini_key.text().strip(),
+            "openai_api_key": self.openai_key.text().strip(),
+            "openai_model": self.openai_model.text().strip() or "gpt-5-nano",
             "ollama_model": self.ollama_model.text().strip() or "qwen2.5:7b-instruct",
             "prefer_ollama_while_busy": self.prefer_ollama_busy.isChecked(),
         }
