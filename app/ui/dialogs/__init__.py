@@ -37,12 +37,14 @@ class ApiKeysDialog(QDialog):
         layout = QFormLayout(self)
 
         self.provider = QComboBox()
-        self.provider.addItems(["Gemini", "OpenAI", "Ollama"])
+        self.provider.addItems(["Gemini", "OpenAI", "Groq", "Ollama"])
         provider = config.get("llm_provider", "gemini").lower()
         if provider == "ollama":
             self.provider.setCurrentText("Ollama")
         elif provider == "openai":
             self.provider.setCurrentText("OpenAI")
+        elif provider == "groq":
+            self.provider.setCurrentText("Groq")
         layout.addRow("Provider:", self.provider)
 
         self.gemini_key = QLineEdit(config.get("gemini_api_key", ""))
@@ -58,6 +60,15 @@ class ApiKeysDialog(QDialog):
         self.openai_model = QLineEdit(config.get("openai_model", "gpt-5-nano"))
         self.openai_model_label = QLabel("OpenAI model:")
         layout.addRow(self.openai_model_label, self.openai_model)
+
+        self.groq_key = QLineEdit(config.get("groq_api_key", ""))
+        self.groq_key.setEchoMode(QLineEdit.Password)
+        self.groq_label = QLabel("GROQ_API_KEY:")
+        layout.addRow(self.groq_label, self.groq_key)
+
+        self.groq_model = QLineEdit(config.get("groq_model", "openai/gpt-oss-20b"))
+        self.groq_model_label = QLabel("Groq model:")
+        layout.addRow(self.groq_model_label, self.groq_model)
 
         self.ollama_model = QLineEdit(config.get("ollama_model", "qwen2.5:7b-instruct"))
         self.ollama_model_label = QLabel("Ollama model:")
@@ -124,6 +135,7 @@ class ApiKeysDialog(QDialog):
         use_ollama = self.provider.currentText().lower() == "ollama"
         use_openai = self.provider.currentText().lower() == "openai"
         use_gemini = self.provider.currentText().lower() == "gemini"
+        use_groq = self.provider.currentText().lower() == "groq"
 
         self.gemini_label.setVisible(use_gemini)
         self.gemini_key.setVisible(use_gemini)
@@ -132,6 +144,11 @@ class ApiKeysDialog(QDialog):
         self.openai_key.setVisible(use_openai)
         self.openai_model_label.setVisible(use_openai)
         self.openai_model.setVisible(use_openai)
+
+        self.groq_label.setVisible(use_groq)
+        self.groq_key.setVisible(use_groq)
+        self.groq_model_label.setVisible(use_groq)
+        self.groq_model.setVisible(use_groq)
 
         self.ollama_model_label.setVisible(use_ollama)
         self.ollama_model.setVisible(use_ollama)
@@ -192,6 +209,8 @@ class ApiKeysDialog(QDialog):
             "gemini_api_key": self.gemini_key.text().strip(),
             "openai_api_key": self.openai_key.text().strip(),
             "openai_model": self.openai_model.text().strip() or "gpt-5-nano",
+            "groq_api_key": self.groq_key.text().strip(),
+            "groq_model": self.groq_model.text().strip() or "openai/gpt-oss-20b",
             "ollama_model": self.ollama_model.text().strip() or "qwen2.5:7b-instruct",
             "prefer_ollama_while_busy": self.prefer_ollama_busy.isChecked(),
         }

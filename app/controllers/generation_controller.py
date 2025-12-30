@@ -28,6 +28,8 @@ class GenerationController:
         gemini_api_key: str,
         openai_api_key: str,
         openai_model: str,
+        groq_api_key: str,
+        groq_model: str,
         ollama_model: str,
         world_state: WorldState,
     ) -> None:
@@ -42,6 +44,8 @@ class GenerationController:
             gemini_api_key,
             openai_api_key,
             openai_model,
+            groq_api_key,
+            groq_model,
             ollama_model,
             world_state,
         )

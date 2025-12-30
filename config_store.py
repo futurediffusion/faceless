@@ -7,6 +7,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "gemini_api_key": "",
     "openai_api_key": "",
     "openai_model": "gpt-5-nano",
+    "groq_api_key": "",
+    "groq_model": "openai/gpt-oss-20b",
     "ollama_model": "qwen2.5:7b-instruct",
     "prefer_ollama_while_busy": True,
 }

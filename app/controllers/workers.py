@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, Signal
 from app.core.comfy_client import ComfyClient
 from llm_contract import build_messages, build_system_prompt
 from llm_gemini import GeminiLLM
+from llm_groq import GroqLLM
 from llm_openai import OpenAILLM
 from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
@@ -84,6 +85,8 @@ class ChatGenerateWorker(threading.Thread):
         gemini_api_key: str,
         openai_api_key: str,
         openai_model: str,
+        groq_api_key: str,
+        groq_model: str,
         ollama_model: str,
         world_state: WorldState,
     ):
@@ -97,6 +100,8 @@ class ChatGenerateWorker(threading.Thread):
         self.gemini_api_key = gemini_api_key
         self.openai_api_key = openai_api_key
         self.openai_model = openai_model
+        self.groq_api_key = groq_api_key
+        self.groq_model = groq_model
         self.ollama_model = ollama_model
         self.world_state = world_state
         self.signals = WorkerSignals()
@@ -115,6 +120,9 @@ class ChatGenerateWorker(threading.Thread):
                 raw_text = llm.generate_avatar_text(messages)
             elif self.provider == "openai":
                 llm = OpenAILLM(self.openai_api_key, self.openai_model)
+                raw_text = llm.generate_avatar_text(messages)
+            elif self.provider == "groq":
+                llm = GroqLLM(self.groq_api_key, self.groq_model)
                 raw_text = llm.generate_avatar_text(messages)
             elif self.provider == "ollama":
                 llm = OllamaLLM(self.ollama_model)
