@@ -12,10 +12,15 @@ class GenerationController:
         self._on_image = on_image
         self._on_reply = on_reply
         self._on_done = on_done
+        self._workers: set[ChatGenerateWorker] = set()
 
     def _handle_reply(self, text: str) -> None:
         print("[GEN_CONTROLLER] Signal reply emitted")
         self._on_reply(text)
+
+    def _handle_done(self, worker: ChatGenerateWorker) -> None:
+        self._workers.discard(worker)
+        self._on_done()
 
     def start_chat_generation(
         self,
@@ -53,6 +58,7 @@ class GenerationController:
         worker.signals.status.connect(self._on_status, Qt.QueuedConnection)
         worker.signals.image.connect(self._on_image, Qt.QueuedConnection)
         worker.signals.reply.connect(self._handle_reply, Qt.QueuedConnection)
-        worker.signals.done.connect(self._on_done, Qt.QueuedConnection)
+        worker.signals.done.connect(lambda: self._handle_done(worker), Qt.QueuedConnection)
+        self._workers.add(worker)
         print("[GEN_CONTROLLER] Signals connected, starting worker")
         worker.start()
