@@ -48,7 +48,7 @@ class InputPanel(QWidget):
 
         self.chat_input = QTextEdit()
         self.chat_input.setPlaceholderText("Chat input...")
-        self.chat_input.setFixedHeight(100)
+        self.chat_input.setFixedHeight(70)
         self.chat_input.setStyleSheet(
             """
             QTextEdit {
@@ -91,6 +91,7 @@ class InputPanel(QWidget):
         self.status = QLabel("")
         self.status.setStyleSheet("color: #808080; font-size: 10px;")
         self.status.setAlignment(Qt.AlignCenter)
+        self.status.setVisible(False)
         layout.addWidget(self.status)
 
     def _emit_generate(self):
@@ -100,18 +101,22 @@ class InputPanel(QWidget):
 
     def toggle_input(self):
         self._input_visible = not self._input_visible
-        self.btn_toggle.setText("▲" if self._input_visible else "▼")
+        self.btn_toggle.setText("▼" if self._input_visible else "▲")
 
         self.chat_input.setVisible(self._input_visible)
         self.btn_generate.setVisible(self._input_visible)
-        self.status.setVisible(self._input_visible)
+        if self._input_visible:
+            self.status.setVisible(bool(self.status.text()))
+        else:
+            self.status.setVisible(False)
         self.visibility_changed.emit()
 
     def preferred_height(self) -> int:
-        return 220 if self._input_visible else 45
+        return 190 if self._input_visible else 45
 
     def set_status(self, text: str):
         self.status.setText(text)
+        self.status.setVisible(bool(text))
 
     def clear_input(self):
         self.chat_input.clear()
