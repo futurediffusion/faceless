@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from comfy_client import ComfyClient
+from app.core.comfy_client import ComfyClient
 from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
 from ollama import ResponseError, show

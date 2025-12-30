@@ -1,6 +1,6 @@
 from typing import Iterable, List
 
-from world_state import ChatTurn
+from app.core.world_state import ChatTurn
 
 
 SCENEPLAN_MARKER = "---SCENEPLAN---"

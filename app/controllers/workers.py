@@ -5,14 +5,14 @@ from typing import Any, Dict
 
 from PySide6.QtCore import QObject, Signal
 
-from comfy_client import ComfyClient
+from app.core.comfy_client import ComfyClient
 from llm_contract import build_messages, build_system_prompt
 from llm_gemini import GeminiLLM
 from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
 from sceneplan_parser import parse_sceneplan
-from world_state import WorldState
-from workflow_patcher import patch_workflow
+from app.core.world_state import WorldState
+from app.core.workflow_patcher import patch_workflow
 
 
 class WorkerSignals(QObject):
