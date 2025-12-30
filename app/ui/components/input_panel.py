@@ -20,8 +20,8 @@ class InputPanel(QWidget):
         )
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 12, 15, 15)
-        layout.setSpacing(8)
+        layout.setContentsMargins(15, 8, 15, 10)
+        layout.setSpacing(2)
 
         toggle_layout = QHBoxLayout()
         toggle_layout.addStretch()
