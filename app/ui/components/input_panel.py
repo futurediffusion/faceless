@@ -46,47 +46,60 @@ class InputPanel(QWidget):
         toggle_layout.addStretch()
         layout.addLayout(toggle_layout)
 
+        self.input_container = QWidget()
+        self.input_container.setFixedHeight(70)
+        self.input_container.setStyleSheet(
+            """
+            QWidget {
+                background-color: rgba(40, 40, 40, 200);
+                border: 2px solid rgba(80, 80, 80, 150);
+                border-radius: 12px;
+            }
+        """
+        )
+        input_layout = QHBoxLayout(self.input_container)
+        input_layout.setContentsMargins(10, 6, 10, 6)
+        input_layout.setSpacing(8)
+
         self.chat_input = QTextEdit()
         self.chat_input.setPlaceholderText("Chat input...")
-        self.chat_input.setFixedHeight(70)
         self.chat_input.setStyleSheet(
             """
             QTextEdit {
-                background-color: rgba(40, 40, 40, 200);
+                background: transparent;
                 color: white;
-                border: 2px solid rgba(80, 80, 80, 150);
-                border-radius: 10px;
-                padding: 6px;
+                border: none;
                 font-size: 12px;
             }
         """
         )
-        layout.addWidget(self.chat_input)
+        input_layout.addWidget(self.chat_input)
 
-        self.btn_generate = QPushButton("Generate")
-        self.btn_generate.setFixedHeight(45)
+        self.btn_generate = QPushButton("↑")
+        self.btn_generate.setFixedSize(34, 34)
         self.btn_generate.setEnabled(False)
         self.btn_generate.setStyleSheet(
             """
             QPushButton {
-                background-color: #ff8800;
-                color: white;
-                border-radius: 22px;
-                font-size: 15px;
-                font-weight: bold;
+                background-color: white;
+                color: #111111;
+                border-radius: 17px;
+                font-size: 18px;
+                font-weight: 600;
                 border: none;
             }
             QPushButton:hover {
-                background-color: #ff9920;
+                background-color: #f0f0f0;
             }
             QPushButton:disabled {
-                background-color: rgba(80, 80, 80, 100);
-                color: rgba(150, 150, 150, 100);
+                background-color: rgba(80, 80, 80, 140);
+                color: rgba(200, 200, 200, 120);
             }
         """
         )
         self.btn_generate.clicked.connect(self._emit_generate)
-        layout.addWidget(self.btn_generate)
+        input_layout.addWidget(self.btn_generate)
+        layout.addWidget(self.input_container)
 
         self.status = QLabel("")
         self.status.setStyleSheet("color: #808080; font-size: 10px;")
@@ -103,8 +116,7 @@ class InputPanel(QWidget):
         self._input_visible = not self._input_visible
         self.btn_toggle.setText("▼" if self._input_visible else "▲")
 
-        self.chat_input.setVisible(self._input_visible)
-        self.btn_generate.setVisible(self._input_visible)
+        self.input_container.setVisible(self._input_visible)
         if self._input_visible:
             self.status.setVisible(bool(self.status.text()))
         else:
