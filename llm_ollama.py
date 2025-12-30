@@ -1,8 +1,6 @@
-from typing import Callable, Iterable, List, Optional
+from typing import Callable, List, Optional
 
 from ollama import ResponseError, chat, list as ollama_list, pull, show
-
-from world_state import ChatTurn
 
 
 class OllamaLLM:
@@ -30,22 +28,9 @@ class OllamaLLM:
         except Exception as exc:
             raise RuntimeError(f"Ollama error: {exc}") from exc
 
-    def generate(self, system_prompt: str, user_text: str, history: Iterable[ChatTurn]) -> str:
+    def generate(self, messages: List[dict]) -> str:
         if not self.is_running():
             raise RuntimeError("Ollama is not running. Start it with `ollama serve`.")
-
-        messages = [
-            {"role": "system", "content": system_prompt.strip()},
-        ]
-
-        history_list: List[ChatTurn] = list(history)[-6:]
-        for turn in history_list:
-            if turn.user_text:
-                messages.append({"role": "user", "content": turn.user_text})
-            if turn.assistant_text:
-                messages.append({"role": "assistant", "content": turn.assistant_text})
-
-        messages.append({"role": "user", "content": user_text.strip()})
 
         def _run_chat() -> str:
             resp = chat(
