@@ -13,6 +13,10 @@ class GenerationController:
         self._on_reply = on_reply
         self._on_done = on_done
 
+    def _handle_reply(self, text: str) -> None:
+        print("[GEN_CONTROLLER] Signal reply emitted")
+        self._on_reply(text)
+
     def start_chat_generation(
         self,
         client: ComfyClient,
@@ -27,6 +31,7 @@ class GenerationController:
         ollama_model: str,
         world_state: WorldState,
     ) -> None:
+        print("[GEN_CONTROLLER] Creating worker and connecting signals")
         worker = ChatGenerateWorker(
             client,
             prompt_graph,
@@ -40,8 +45,10 @@ class GenerationController:
             ollama_model,
             world_state,
         )
+        # Use Qt.QueuedConnection for cross-thread signals
         worker.signals.status.connect(self._on_status, Qt.QueuedConnection)
         worker.signals.image.connect(self._on_image, Qt.QueuedConnection)
-        worker.signals.reply.connect(self._on_reply, Qt.QueuedConnection)
+        worker.signals.reply.connect(self._handle_reply, Qt.QueuedConnection)
         worker.signals.done.connect(self._on_done, Qt.QueuedConnection)
+        print("[GEN_CONTROLLER] Signals connected, starting worker")
         worker.start()
