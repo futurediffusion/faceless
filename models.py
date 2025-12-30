@@ -5,8 +5,8 @@ from typing import Optional
 @dataclass
 class GenParams:
     seed: Optional[int] = None
-    steps: int = 8
-    cfg: float = 2.2
+    steps: int = 4
+    cfg: float = 1.8
     sampler: str = "euler_ancestral"
     scheduler: str = "simple"
     quality_tags: str = "masterpiece, best quality, high quality, detailed"
