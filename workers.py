@@ -6,10 +6,11 @@ from typing import Any, Dict
 from PySide6.QtCore import QObject, Signal
 
 from comfy_client import ComfyClient
-from llm_gemini import GeminiLLM, SYSTEM_BASE
+from llm_contract import build_messages, build_system_prompt
+from llm_gemini import GeminiLLM
 from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
-from scene_plan import parse_scene_plan
+from sceneplan_parser import parse_sceneplan
 from world_state import WorldState
 from workflow_patcher import patch_workflow
 
@@ -94,16 +95,17 @@ class ChatGenerateWorker(threading.Thread):
     def run(self):
         try:
             self.signals.status.emit("…")
-            system_prompt = f"{SYSTEM_BASE}\n\n{self.world_state.build_llm_context()}"
+            system_prompt = build_system_prompt(self.world_state.build_llm_context())
+            messages = build_messages(self.user_text, self.world_state.history, system_prompt)
             if self.provider == "gemini":
                 llm = GeminiLLM(self.api_key)
-                raw_text = llm.generate_avatar_text(self.user_text, system_prompt)
+                raw_text = llm.generate_avatar_text(messages)
             elif self.provider == "ollama":
                 llm = OllamaLLM(self.ollama_model)
-                raw_text = llm.generate(system_prompt, self.user_text, self.world_state.history)
+                raw_text = llm.generate(messages)
             else:
                 raise ValueError(f"Unknown LLM provider: {self.provider}")
-            scene_plan = parse_scene_plan(raw_text)
+            scene_plan = parse_sceneplan(raw_text)
             print("[LLM] ScenePlan:")
             print(scene_plan)
 
@@ -122,9 +124,6 @@ class ChatGenerateWorker(threading.Thread):
                 append_parts.append(scene_append)
             prompt_append = ", ".join(append_parts)
 
-            self.world_state.apply_sceneplan(scene_plan)
-            self.world_state.add_turn(self.user_text, scene_plan.reply, scene_plan)
-
             run_params = replace(self.gen_params)
 
             self.signals.status.emit("…")
@@ -141,9 +140,14 @@ class ChatGenerateWorker(threading.Thread):
             self.signals.status.emit("…")
             img_bytes = self.client.download_image(imgref)
 
+            self.world_state.apply_sceneplan(scene_plan)
+            self.world_state.add_turn(self.user_text, scene_plan.reply, scene_plan)
+
             self.signals.image.emit(img_bytes)
             self.signals.reply.emit(scene_plan.reply)
             self.signals.status.emit("")
+        except TimeoutError:
+            self.signals.status.emit("Comfy no devolvió resultado. Revisa consola/VRAM.")
         except Exception as e:
             self.signals.status.emit(f"ERROR: {e}")
             print(f"[ERROR] {e}")

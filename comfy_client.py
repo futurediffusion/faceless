@@ -53,16 +53,37 @@ class ComfyClient:
         r.raise_for_status()
         return r.json()["prompt_id"]
 
+    def get_queue(self) -> Dict[str, Any]:
+        r = requests.get(f"{self.base_url}/queue", timeout=10)
+        r.raise_for_status()
+        return r.json()
+
     def wait_for_history(self, prompt_id: str, poll=0.5, timeout_s=180) -> Dict[str, Any]:
         start = time.time()
-        while time.time() - start < timeout_s:
+        extended_timeout = timeout_s
+        warned = False
+        while time.time() - start < extended_timeout:
             r = requests.get(f"{self.base_url}/history/{prompt_id}", timeout=10)
             if r.status_code == 200:
                 data = r.json()
                 if prompt_id in data:
                     return data[prompt_id]
             time.sleep(poll)
-        raise TimeoutError("ComfyUI timeout: no result in /history")
+            if time.time() - start >= timeout_s and not warned:
+                try:
+                    queue = self.get_queue()
+                except Exception:
+                    queue = {}
+                running = queue.get("running") or []
+                pending = queue.get("pending") or []
+                if running or pending:
+                    extended_timeout += 120
+                    warned = True
+                else:
+                    break
+        raise TimeoutError(
+            "No apareció en history; Comfy pudo fallar o reiniciarse."
+        )
 
     def extract_first_image(self, history_item: Dict[str, Any]) -> ComfyImageRef:
         outputs = history_item.get("outputs", {})
