@@ -3,3 +3,4 @@ requests
 google-genai
 tqdm
 ollama
+openai

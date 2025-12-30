@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, Signal
 from app.core.comfy_client import ComfyClient
 from llm_contract import build_messages, build_system_prompt
 from llm_gemini import GeminiLLM
+from llm_openai import OpenAILLM
 from llm_ollama import OllamaLLM
 from models import CharacterParams, GenParams
 from sceneplan_parser import parse_sceneplan
@@ -80,7 +81,9 @@ class ChatGenerateWorker(threading.Thread):
         user_text: str,
         gen_params: GenParams,
         provider: str,
-        api_key: str,
+        gemini_api_key: str,
+        openai_api_key: str,
+        openai_model: str,
         ollama_model: str,
         world_state: WorldState,
     ):
@@ -91,7 +94,9 @@ class ChatGenerateWorker(threading.Thread):
         self.user_text = user_text
         self.gen_params = gen_params
         self.provider = provider
-        self.api_key = api_key
+        self.gemini_api_key = gemini_api_key
+        self.openai_api_key = openai_api_key
+        self.openai_model = openai_model
         self.ollama_model = ollama_model
         self.world_state = world_state
         self.signals = WorkerSignals()
@@ -106,7 +111,10 @@ class ChatGenerateWorker(threading.Thread):
             messages = build_messages(self.user_text, self.world_state.history, system_prompt)
             
             if self.provider == "gemini":
-                llm = GeminiLLM(self.api_key)
+                llm = GeminiLLM(self.gemini_api_key)
+                raw_text = llm.generate_avatar_text(messages)
+            elif self.provider == "openai":
+                llm = OpenAILLM(self.openai_api_key, self.openai_model)
                 raw_text = llm.generate_avatar_text(messages)
             elif self.provider == "ollama":
                 llm = OllamaLLM(self.ollama_model)
