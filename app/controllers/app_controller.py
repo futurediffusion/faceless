@@ -217,3 +217,5 @@ class AppController:
         print(f"[APP_CONTROLLER] on_reply_text called with: '{text[:50]}...'")
         if text:
             self.window.show_reply(text)
+        else:
+            print("[APP_CONTROLLER] WARNING: Empty reply text received")
