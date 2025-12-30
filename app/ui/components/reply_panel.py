@@ -18,13 +18,24 @@ class ReplyPanel(QTextEdit):
         """
         )
         self.hide()
+        print("[ReplyPanel] Initialized (hidden)")
 
     def set_reply(self, text: str):
         clean_text = text.strip()
+        print(
+            f"[ReplyPanel] set_reply called with: '{clean_text[:50]}...'"
+            if len(clean_text) > 50
+            else f"[ReplyPanel] set_reply called with: '{clean_text}'"
+        )
+
         if clean_text:
             self.setPlainText(clean_text)
+            print(f"[ReplyPanel] Text set, was hidden: {self.isHidden()}")
             if self.isHidden():
                 self.show()
+                print("[ReplyPanel] Called show()")
+            print(f"[ReplyPanel] Now visible: {self.isVisible()}")
         else:
             self.clear()
             self.hide()
+            print("[ReplyPanel] Cleared and hidden (empty text)")
