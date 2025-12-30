@@ -1,3 +1,5 @@
+from PySide6.QtCore import Qt
+
 from app.controllers.workers import ChatGenerateWorker
 from app.core.comfy_client import ComfyClient
 from models import CharacterParams, GenParams
@@ -34,8 +36,8 @@ class GenerationController:
             ollama_model,
             world_state,
         )
-        worker.signals.status.connect(self._on_status)
-        worker.signals.image.connect(self._on_image)
-        worker.signals.reply.connect(self._on_reply)
-        worker.signals.done.connect(self._on_done)
+        worker.signals.status.connect(self._on_status, Qt.QueuedConnection)
+        worker.signals.image.connect(self._on_image, Qt.QueuedConnection)
+        worker.signals.reply.connect(self._on_reply, Qt.QueuedConnection)
+        worker.signals.done.connect(self._on_done, Qt.QueuedConnection)
         worker.start()

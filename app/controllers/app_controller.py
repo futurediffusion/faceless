@@ -202,9 +202,11 @@ class AppController:
         self.refresh_generate_state()
 
     def on_image(self, data: bytes):
+        print(f"[APP_CONTROLLER] on_image called with {len(data)} bytes")
         if not self.window.set_image_bytes(data):
             self.window.set_status("ERROR: decode failed")
 
     def on_reply_text(self, text: str):
+        print(f"[APP_CONTROLLER] on_reply_text called with: '{text[:50]}...'")
         if text:
             self.window.show_reply(text)
