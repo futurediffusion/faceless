@@ -73,8 +73,8 @@ class MainWindow(QWidget):
     def position_reply_panel(self):
         reply_height = 140
         bottom_padding = 10
-        input_height = self.input_panel.height()
-        top = self.height() - input_height - reply_height - bottom_padding
+        input_rect = self.input_panel.geometry()
+        top = input_rect.top() - reply_height - bottom_padding
         self.reply_panel.setGeometry(10, max(10, top), self.width() - 20, reply_height)
         self.reply_panel.raise_()
 

@@ -20,8 +20,9 @@ class ReplyPanel(QTextEdit):
         self.hide()
 
     def set_reply(self, text: str):
-        if text:
-            self.setPlainText(text)
+        clean_text = text.strip()
+        if clean_text:
+            self.setPlainText(clean_text)
             self.show()
         else:
             self.clear()
