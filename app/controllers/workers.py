@@ -41,18 +41,24 @@ class GenerateWorker(threading.Thread):
 
     def run(self):
         try:
-            self.signals.status.emit("…")
+            self.signals.status.emit("Parchando workflow…")
+            print("[WORKER] Phase 1: Patching workflow")
             graph = patch_workflow(self.prompt_graph, self.char_params, self.append_text, self.gen_params)
+            print("[WORKER] Workflow patched successfully")
 
             client_id = str(uuid.uuid4())
-            self.signals.status.emit("…")
+            self.signals.status.emit("Encolando en ComfyUI…")
+            print(f"[WORKER] Phase 2: Queueing to ComfyUI (client_id={client_id})")
             prompt_id = self.client.queue_prompt(graph, client_id)
+            print(f"[WORKER] Prompt queued: {prompt_id}")
 
-            self.signals.status.emit("…")
+            self.signals.status.emit("Esperando resultado…")
+            print("[WORKER] Phase 3: Waiting for history")
             hist = self.client.wait_for_history(prompt_id)
 
             imgref = self.client.extract_first_image(hist)
-            self.signals.status.emit("…")
+            self.signals.status.emit("Descargando imagen…")
+            print("[WORKER] Phase 4: Downloading image")
             img_bytes = self.client.download_image(imgref)
 
             self.signals.image.emit(img_bytes)
@@ -94,7 +100,8 @@ class ChatGenerateWorker(threading.Thread):
 
     def run(self):
         try:
-            self.signals.status.emit("…")
+            self.signals.status.emit("Llamando LLM…")
+            print("[WORKER] Phase 1: Calling LLM")
             system_prompt = build_system_prompt(self.world_state.build_llm_context())
             messages = build_messages(self.user_text, self.world_state.history, system_prompt)
             if self.provider == "gemini":
@@ -105,6 +112,9 @@ class ChatGenerateWorker(threading.Thread):
                 raw_text = llm.generate(messages)
             else:
                 raise ValueError(f"Unknown LLM provider: {self.provider}")
+            print(f"[WORKER] LLM response length: {len(raw_text)} chars")
+            self.signals.status.emit("Procesando ScenePlan…")
+            print("[WORKER] Phase 2: Parsing ScenePlan")
             scene_plan = parse_sceneplan(raw_text)
             print("[LLM] ScenePlan:")
             print(scene_plan)
@@ -126,18 +136,24 @@ class ChatGenerateWorker(threading.Thread):
 
             run_params = replace(self.gen_params)
 
-            self.signals.status.emit("…")
+            self.signals.status.emit("Parchando workflow…")
+            print("[WORKER] Phase 3: Patching workflow")
             graph = patch_workflow(self.prompt_graph, self.char_params, prompt_append, run_params)
+            print("[WORKER] Workflow patched successfully")
 
             client_id = str(uuid.uuid4())
-            self.signals.status.emit("…")
+            self.signals.status.emit("Encolando en ComfyUI…")
+            print(f"[WORKER] Phase 4: Queueing to ComfyUI (client_id={client_id})")
             prompt_id = self.client.queue_prompt(graph, client_id)
+            print(f"[WORKER] Prompt queued: {prompt_id}")
 
-            self.signals.status.emit("…")
+            self.signals.status.emit("Esperando resultado…")
+            print("[WORKER] Phase 5: Waiting for history")
             hist = self.client.wait_for_history(prompt_id)
 
             imgref = self.client.extract_first_image(hist)
-            self.signals.status.emit("…")
+            self.signals.status.emit("Descargando imagen…")
+            print("[WORKER] Phase 6: Downloading image")
             img_bytes = self.client.download_image(imgref)
 
             self.world_state.apply_sceneplan(scene_plan)
@@ -147,6 +163,7 @@ class ChatGenerateWorker(threading.Thread):
             self.signals.reply.emit(scene_plan.reply)
             self.signals.status.emit("")
         except TimeoutError:
+            print("[WORKER] Timeout waiting for ComfyUI history")
             self.signals.status.emit("Comfy no devolvió resultado. Revisa consola/VRAM.")
         except Exception as e:
             self.signals.status.emit(f"ERROR: {e}")
